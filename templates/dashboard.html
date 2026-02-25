@@ -899,9 +899,6 @@ function buildView(id) {
   else if (id === 'table')   { if (!tabBuilt.table) { initTable(); tabBuilt.table = true; } else { renderTable(); } }
 }
 
-// initial build
-buildTreemap();
-
 // ═══════════════════════════════════════════════════════════════════
 //  VIEW 1 — TREEMAP
 // ═══════════════════════════════════════════════════════════════════
@@ -1081,6 +1078,9 @@ function buildHierarchy(nodeList) {
 
   return root;
 }
+
+// initial build (after all treemap declarations)
+buildTreemap();
 
 // ═══════════════════════════════════════════════════════════════════
 //  VIEW 2 — FORCE GRAPH
