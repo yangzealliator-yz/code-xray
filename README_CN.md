@@ -2,6 +2,8 @@
 
 > 一行命令透视任何代码库。生成包含依赖图、文件树图、Git 热力图和项目统计的可视化看板。
 
+**在线演示**: [Flask 看板](https://yangzealliator-yz.github.io/code-xray/demo-flask.html) | [自扫描](https://yangzealliator-yz.github.io/code-xray/demo-self.html)
+
 ## 安装
 
 ### 方式一：pip 安装（推荐）

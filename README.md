@@ -2,6 +2,8 @@
 
 > One command to X-ray any codebase. Generate a visual dashboard with dependency graphs, file treemaps, git heatmaps, and project statistics.
 
+**Live Demo**: [Flask dashboard](https://yangzealliator-yz.github.io/code-xray/demo-flask.html) | [Self-scan](https://yangzealliator-yz.github.io/code-xray/demo-self.html)
+
 ## Installation
 
 ### Option 1: pip install (recommended)

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code X-Ray — Live Demos</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+  h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: #f0f6fc; }
+  h1 span { color: #58a6ff; }
+  .subtitle { color: #8b949e; margin-bottom: 3rem; font-size: 1.1rem; }
+  .cards { display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center; max-width: 800px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 2rem; width: 340px; transition: border-color 0.2s, transform 0.2s; text-decoration: none; color: inherit; }
+  .card:hover { border-color: #58a6ff; transform: translateY(-4px); }
+  .card h2 { color: #f0f6fc; margin-bottom: 0.5rem; font-size: 1.3rem; }
+  .card .stats { color: #58a6ff; font-size: 0.9rem; margin-bottom: 0.8rem; }
+  .card p { color: #8b949e; font-size: 0.95rem; line-height: 1.5; }
+  .footer { margin-top: 3rem; color: #484f58; font-size: 0.85rem; }
+  .footer a { color: #58a6ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <h1>Code <span>X-Ray</span></h1>
+  <p class="subtitle">One command to X-ray any codebase. Try the live demos below.</p>
+  <div class="cards">
+    <a class="card" href="demo-flask.html">
+      <h2>Flask</h2>
+      <div class="stats">235 files &middot; 36K lines &middot; Python</div>
+      <p>The popular Python web framework. See its file structure, dependency graph, and language breakdown in an interactive dashboard.</p>
+    </a>
+    <a class="card" href="demo-self.html">
+      <h2>Code X-Ray (self-scan)</h2>
+      <div class="stats">35 files &middot; 20K lines &middot; Python + HTML</div>
+      <p>Code X-Ray scans itself. A meta-demo showing the tool's own architecture, dependencies, and file distribution.</p>
+    </a>
+  </div>
+  <p class="footer">
+    <a href="https://github.com/yangzealliator-yz/code-xray">GitHub</a> &middot;
+    Install: <code>pip install git+https://github.com/yangzealliator-yz/code-xray.git</code>
+  </p>
+</body>
+</html>
