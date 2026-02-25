@@ -1,0 +1,10 @@
+{
+    "exclude_dirs": ["vendor", "third_party", "generated"],
+    "exclude_patterns": ["*.min.js", "*.generated.cs"],
+    "max_depth": null,
+    "max_files": null,
+    "custom_categories": {
+        ".proto": "config",
+        ".shader": "source"
+    }
+}

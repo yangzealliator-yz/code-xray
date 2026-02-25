@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.xrayrc
+xray-report.html
+xray-data.json
+_test_output.html
+_self_test.html
+*.egg
+.eggs/
+.venv/
+venv/
+.env
