@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "code-xray"
+version = "1.0.0"
+description = "One command to X-ray any codebase — generate visual dashboards with dependency graphs, treemaps, and git heatmaps."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "yangze"},
+]
+keywords = ["code-analysis", "visualization", "dependency-graph", "treemap", "dashboard", "developer-tools"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Documentation",
+]
+
+[project.urls]
+Homepage = "https://github.com/yangzealliator-yz/code-xray"
+Repository = "https://github.com/yangzealliator-yz/code-xray"
+Issues = "https://github.com/yangzealliator-yz/code-xray/issues"
+
+[project.scripts]
+xray = "xray.cli:main"
+code-xray = "xray.cli:main"
+
+[tool.setuptools]
+packages = ["xray"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+xray = ["templates/*.html"]

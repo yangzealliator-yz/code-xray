@@ -2,21 +2,58 @@
 
 > One command to X-ray any codebase. Generate a visual dashboard with dependency graphs, file treemaps, git heatmaps, and project statistics.
 
+## Installation
+
+### Option 1: pip install (recommended)
+
+```bash
+pip install code-xray
+
+# Then use anywhere:
+xray /path/to/your/project
+```
+
+### Option 2: pip install from GitHub
+
+```bash
+pip install git+https://github.com/yangzealliator-yz/code-xray.git
+```
+
+### Option 3: pip install from Gitee (China mirror)
+
+```bash
+pip install git+https://gitee.com/yangzealliator/code-xray.git
+```
+
+### Option 4: Clone and run directly
+
+```bash
+# GitHub
+git clone https://github.com/yangzealliator-yz/code-xray.git
+
+# Gitee (China mirror / 国内镜像)
+git clone https://gitee.com/yangzealliator/code-xray.git
+
+cd code-xray
+python xray.py /path/to/your/project
+```
+
+No dependencies required — Python 3.8+ only.
+
 ## Quick Start
 
 ```bash
-# Clone and run
-git clone https://github.com/user/code-xray.git
-cd code-xray
+# After pip install:
+xray .                          # Scan current directory
+xray /path/to/project           # Scan any project
+xray . -o my-report.html        # Custom output path
 
-# Scan any project
-python xray.py /path/to/your/project
+# Or run directly from clone:
+python xray.py /path/to/project
 
 # Open the generated dashboard
 # → xray-report.html
 ```
-
-No dependencies required — Python 3.8+ only.
 
 ## Features
 
@@ -34,7 +71,7 @@ All visualizations powered by D3.js. Works offline after generation.
 ## CLI Usage
 
 ```
-python xray.py [path] [options]
+xray [path] [options]
 
 Arguments:
   path                  Project to scan (default: current directory)
@@ -46,8 +83,13 @@ Options:
   --exclude DIR [DIR…]  Additional directories to exclude
   --max-depth N         Limit scan depth
   --max-files N         Limit number of files
+  --ai                  Output LLM-friendly JSON instead of HTML
+  --deep MODE           Depth for --ai (keys/signatures/ai-config)
+  --prompt TYPE         Output a complete prompt for LLM (arch/deps/refactor)
   --version             Show version
 ```
+
+> After `pip install`, use `xray` or `code-xray` commands. From a git clone, use `python xray.py`.
 
 ## Configuration
 
@@ -115,10 +157,10 @@ Claude will automatically scan your project and provide architectural insights, 
 Code X-Ray includes AI-optimized output modes for any LLM:
 
 ```bash
-python xray.py . --ai                      # Compact JSON for LLM context
-python xray.py . --ai --deep signatures    # + function signatures
-python xray.py . --ai --prompt arch        # Complete prompt + data
-python xray.py . --ai --prompt arch | llm  # Pipe directly to any LLM
+xray . --ai                      # Compact JSON for LLM context
+xray . --ai --deep signatures    # + function signatures
+xray . --ai --prompt arch        # Complete prompt + data
+xray . --ai --prompt arch | llm  # Pipe directly to any LLM
 ```
 
 ## License

@@ -2,21 +2,58 @@
 
 > 一行命令透视任何代码库。生成包含依赖图、文件树图、Git 热力图和项目统计的可视化看板。
 
+## 安装
+
+### 方式一：pip 安装（推荐）
+
+```bash
+pip install code-xray
+
+# 然后随处使用：
+xray /path/to/your/project
+```
+
+### 方式二：从 GitHub 安装
+
+```bash
+pip install git+https://github.com/yangzealliator-yz/code-xray.git
+```
+
+### 方式三：从 Gitee 安装（国内镜像，无需 VPN）
+
+```bash
+pip install git+https://gitee.com/yangzealliator/code-xray.git
+```
+
+### 方式四：克隆源码直接运行
+
+```bash
+# GitHub
+git clone https://github.com/yangzealliator-yz/code-xray.git
+
+# Gitee（国内镜像）
+git clone https://gitee.com/yangzealliator/code-xray.git
+
+cd code-xray
+python xray.py /path/to/your/project
+```
+
+零外部依赖 — 仅需 Python 3.8+。
+
 ## 快速开始
 
 ```bash
-# 克隆并运行
-git clone https://github.com/user/code-xray.git
-cd code-xray
+# pip 安装后：
+xray .                          # 扫描当前目录
+xray /path/to/project           # 扫描任意项目
+xray . -o my-report.html        # 自定义输出路径
 
-# 扫描任意项目
-python xray.py /path/to/your/project
+# 或从源码直接运行：
+python xray.py /path/to/project
 
 # 打开生成的看板
 # → xray-report.html
 ```
-
-零外部依赖 — 仅需 Python 3.8+。
 
 ## 功能特性
 
@@ -34,7 +71,7 @@ Code X-Ray 生成单个自包含 HTML 看板，包含 4 个交互式视图：
 ## CLI 用法
 
 ```
-python xray.py [路径] [选项]
+xray [路径] [选项]
 
 参数:
   路径                   要扫描的项目（默认：当前目录）
@@ -46,8 +83,13 @@ python xray.py [路径] [选项]
   --exclude 目录 [目录…]  额外排除的目录
   --max-depth N          限制扫描深度
   --max-files N          限制文件数量
+  --ai                   输出 LLM 友好 JSON（替代 HTML）
+  --deep 模式            --ai 深度（keys/signatures/ai-config）
+  --prompt 类型          输出完整 LLM 分析 prompt（arch/deps/refactor）
   --version              显示版本号
 ```
+
+> `pip install` 后使用 `xray` 或 `code-xray` 命令。从源码克隆则使用 `python xray.py`。
 
 ## 配置文件
 
@@ -110,10 +152,10 @@ cp -r /path/to/code-xray/.claude/commands/xray.md ~/.claude/commands/
 ### LLM 友好输出
 
 ```bash
-python xray.py . --ai                      # 紧凑 JSON 适合 LLM 上下文
-python xray.py . --ai --deep signatures    # + 函数签名
-python xray.py . --ai --prompt arch        # 完整 prompt + 数据
-python xray.py . --ai --prompt arch | llm  # 直接管道到任何 LLM
+xray . --ai                      # 紧凑 JSON 适合 LLM 上下文
+xray . --ai --deep signatures    # + 函数签名
+xray . --ai --prompt arch        # 完整 prompt + 数据
+xray . --ai --prompt arch | llm  # 直接管道到任何 LLM
 ```
 
 ## 许可证

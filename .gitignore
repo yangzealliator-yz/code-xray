@@ -9,6 +9,11 @@ xray-report.html
 xray-data.json
 _test_output.html
 _self_test.html
+_final_test.html
+_final_data.json
+_scripts_test.html
+_unity_test.html
+_unity_data.json
 *.egg
 .eggs/
 .venv/

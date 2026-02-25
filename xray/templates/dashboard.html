@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code X-Ray</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+  /* ── Reset & Base ──────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d1117;
+    --bg2:       #161b22;
+    --bg3:       #21262d;
+    --border:    #30363d;
+    --text:      #c9d1d9;
+    --text-muted:#8b949e;
+    --accent:    #58a6ff;
+    --accent2:   #3fb950;
+    --danger:    #f85149;
+    --warn:      #e3b341;
+    --radius:    6px;
+    --font:      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono:      ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+  }
+
+  /* ── Layout ────────────────────────────────────────────────────── */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Header ────────────────────────────────────────────────────── */
+  #header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  #header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0 8px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  #logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #logo-icon {
+    width: 32px;
+    height: 32px;
+    opacity: 0.9;
+  }
+
+  #logo-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+
+  #logo-title span {
+    color: var(--accent);
+  }
+
+  #global-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #global-search input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px;
+    padding: 6px 10px 6px 30px;
+    width: 240px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    font-family: var(--font);
+  }
+
+  #global-search input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(88,166,255,0.12);
+  }
+
+  #search-wrap {
+    position: relative;
+  }
+
+  #search-wrap .search-icon {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    font-size: 13px;
+  }
+
+  #stats-bar {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 5px 0 10px;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .stat-item .stat-value {
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Tab Bar ───────────────────────────────────────────────────── */
+  #tab-bar {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    padding: 10px 16px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tab:hover { color: var(--text); }
+
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── Main Content ──────────────────────────────────────────────── */
+  #views {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .view {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .view.active {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Tooltip ───────────────────────────────────────────────────── */
+  #tooltip {
+    position: fixed;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 13px;
+    font-size: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+    z-index: 9999;
+    max-width: 300px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    line-height: 1.7;
+  }
+
+  #tooltip.visible { opacity: 1; }
+
+  .tt-title {
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    word-break: break-all;
+  }
+
+  .tt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .tt-label { color: var(--text-muted); }
+  .tt-val { color: var(--text); font-weight: 500; }
+
+  /* ── SVG common ────────────────────────────────────────────────── */
+  svg text { font-family: var(--font); fill: var(--text); }
+
+  /* ── View 1: Treemap ───────────────────────────────────────────── */
+  #view-treemap {
+    position: relative;
+    padding: 12px;
+  }
+
+  #treemap-breadcrumb {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  .bc-item {
+    cursor: pointer;
+    color: var(--accent);
+    transition: opacity 0.15s;
+  }
+
+  .bc-item:hover { opacity: 0.8; }
+  .bc-sep { color: var(--border); }
+
+  #treemap-svg-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+
+  #treemap-svg-wrap svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .treemap-cell rect {
+    stroke: var(--bg);
+    stroke-width: 1.5;
+    rx: 2;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .treemap-cell:hover rect { opacity: 0.85; stroke: var(--accent); stroke-width: 2; }
+
+  .treemap-cell text {
+    font-size: 11px;
+    pointer-events: none;
+    fill: rgba(255,255,255,0.88);
+    font-weight: 500;
+  }
+
+  /* ── View 2: Force Graph ───────────────────────────────────────── */
+  #view-force {
+    position: relative;
+  }
+
+  #force-svg-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #force-svg-wrap svg {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+  }
+
+  #force-svg-wrap svg:active { cursor: grabbing; }
+
+  .force-node circle {
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .force-node text {
+    font-size: 10px;
+    pointer-events: none;
+    fill: var(--text-muted);
+  }
+
+  .force-link {
+    stroke: var(--border);
+    stroke-opacity: 0.6;
+    stroke-width: 1;
+    marker-end: url(#arrowhead);
+    fill: none;
+  }
+
+  .force-node.dimmed circle { opacity: 0.15; }
+  .force-node.dimmed text { opacity: 0.1; }
+  .force-link.dimmed { stroke-opacity: 0.07; }
+  .force-node.highlighted circle { stroke-width: 2.5; }
+  .force-link.highlighted { stroke: var(--accent); stroke-opacity: 0.9; stroke-width: 1.5; }
+
+  #force-legend {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 13px;
+    font-size: 11px;
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  #force-legend .leg-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .leg-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+
+  .leg-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── View 3: Heatmap ───────────────────────────────────────────── */
+  #view-heatmap {
+    padding: 12px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  #heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  #heatmap-legend-label { color: var(--text-muted); }
+
+  #heatmap-gradient {
+    width: 160px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  .hm-low { color: var(--text-muted); }
+  .hm-high { color: var(--warn); }
+
+  #heatmap-container {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .hm-dir-group { margin-bottom: 20px; }
+
+  .hm-dir-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-left: 2px;
+  }
+
+  .hm-cells {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+
+  .hm-cell {
+    width: 26px;
+    height: 26px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    border: 1px solid transparent;
+  }
+
+  .hm-cell:hover {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 2px var(--accent);
+    border-color: var(--accent);
+    z-index: 10;
+    position: relative;
+  }
+
+  /* ── View 4: Table ─────────────────────────────────────────────── */
+  #view-table {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  #table-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  #table-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 360px;
+  }
+
+  #table-search-wrap .search-icon {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    font-size: 13px;
+  }
+
+  #table-search {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px;
+    padding: 7px 10px 7px 30px;
+    outline: none;
+    font-family: var(--font);
+    transition: border-color 0.15s;
+  }
+
+  #table-search:focus { border-color: var(--accent); }
+
+  #table-row-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  #table-show-all {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--accent);
+    font-size: 12px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: var(--font);
+    white-space: nowrap;
+  }
+
+  #table-show-all:hover { background: var(--bg2); }
+  #table-show-all.hidden { display: none; }
+
+  #table-wrap {
+    flex: 1;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: var(--bg3);
+    z-index: 10;
+  }
+
+  th {
+    padding: 9px 12px;
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    transition: color 0.15s;
+  }
+
+  th:hover { color: var(--text); }
+
+  th.sort-asc::after  { content: " ↑"; color: var(--accent); }
+  th.sort-desc::after { content: " ↓"; color: var(--accent); }
+
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  td:first-child { color: var(--accent); }
+
+  tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover td { background: var(--bg3); }
+
+  .lang-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--font);
+    letter-spacing: 0.02em;
+  }
+
+  .num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ── Empty State ───────────────────────────────────────────────── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  .empty-icon { font-size: 40px; opacity: 0.4; }
+
+  /* ── Scrollbars ────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+  /* ── Transitions ───────────────────────────────────────────────── */
+  .view { animation: fadeIn 0.18s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ── Header ── -->
+  <div id="header">
+    <div id="header-top">
+      <div id="logo">
+        <svg id="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="7" fill="#161b22" stroke="#30363d"/>
+          <path d="M16 6 L26 11 L26 21 L16 26 L6 21 L6 11 Z" stroke="#58a6ff" stroke-width="1.5" fill="none" opacity="0.4"/>
+          <ellipse cx="16" cy="16" rx="5" ry="8" stroke="#58a6ff" stroke-width="1.5" fill="none" transform="rotate(-30,16,16)"/>
+          <circle cx="16" cy="16" r="2.5" fill="#58a6ff"/>
+          <path d="M8 10 L24 22 M24 10 L8 22" stroke="#3fb950" stroke-width="1" opacity="0.5"/>
+        </svg>
+        <div id="logo-title">Code <span>X-Ray</span></div>
+      </div>
+      <div id="global-search">
+        <div id="search-wrap">
+          <span class="search-icon">&#x2315;</span>
+          <input type="text" id="global-filter" placeholder="Filter files…" autocomplete="off">
+        </div>
+      </div>
+    </div>
+    <div id="stats-bar">
+      <div class="stat-item">
+        <span class="stat-value" id="s-files">0</span>
+        <span>files</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="s-lines">0</span>
+        <span>lines</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="s-langs">0</span>
+        <span>languages</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Generated:</span>
+        <span class="stat-value" id="s-time">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab Bar ── -->
+  <div id="tab-bar">
+    <div class="tab active" data-tab="treemap">
+      <span>&#9710;</span> Structure
+    </div>
+    <div class="tab" data-tab="force">
+      <span>&#9672;</span> Dependencies
+    </div>
+    <div class="tab" data-tab="heatmap">
+      <span>&#9635;</span> Heatmap
+    </div>
+    <div class="tab" data-tab="table">
+      <span>&#9776;</span> Table
+    </div>
+  </div>
+
+  <!-- ── Views ── -->
+  <div id="views">
+
+    <!-- View 1: Treemap -->
+    <div id="view-treemap" class="view active">
+      <div id="treemap-breadcrumb"></div>
+      <div id="treemap-svg-wrap"></div>
+    </div>
+
+    <!-- View 2: Force Graph -->
+    <div id="view-force" class="view">
+      <div id="force-svg-wrap"></div>
+      <div id="force-legend">
+        <div class="leg-title">Languages</div>
+        <div id="force-legend-items"></div>
+      </div>
+    </div>
+
+    <!-- View 3: Heatmap -->
+    <div id="view-heatmap" class="view">
+      <div id="heatmap-legend">
+        <span id="heatmap-legend-label">Activity:</span>
+        <span class="hm-low">Low</span>
+        <canvas id="heatmap-gradient" width="160" height="12"></canvas>
+        <span class="hm-high">High</span>
+      </div>
+      <div id="heatmap-container"></div>
+    </div>
+
+    <!-- View 4: Table -->
+    <div id="view-table" class="view">
+      <div id="table-controls">
+        <div id="table-search-wrap">
+          <span class="search-icon">&#x2315;</span>
+          <input type="text" id="table-search" placeholder="Search files…" autocomplete="off">
+        </div>
+        <span id="table-row-count"></span>
+        <button id="table-show-all" class="hidden">Show all</button>
+      </div>
+      <div id="table-wrap">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th data-col="id">File</th>
+              <th data-col="language">Language</th>
+              <th data-col="category">Category</th>
+              <th data-col="lines" class="num-cell">Lines</th>
+              <th data-col="size" class="num-cell">Size</th>
+              <th data-col="deps" class="num-cell">Deps</th>
+              <th data-col="git_commits" class="num-cell">Commits</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /views -->
+</div><!-- /app -->
+
+<!-- ── Tooltip ── -->
+<div id="tooltip"></div>
+
+<!-- ── Data Injection Point ── -->
+<script>
+const XRAY_DATA = /*__XRAY_DATA__*/{"meta":{"project":"demo","scan_time":"2026-02-25T00:00:00Z","version":"1.0.0"},"summary":{"total_files":42,"total_lines":8540,"languages":{"python":18,"javascript":10,"typescript":7,"css":4,"markdown":3},"categories":{"source":32,"config":5,"docs":5}},"nodes":[{"id":"src/main.py","language":"python","category":"source","lines":320,"size":9800,"directory":"src","git_commits":47,"git_last_modified":"2026-02-20"},{"id":"src/core/engine.py","language":"python","category":"source","lines":580,"size":17200,"directory":"src/core","git_commits":89,"git_last_modified":"2026-02-19"},{"id":"src/core/parser.py","language":"python","category":"source","lines":410,"size":12100,"directory":"src/core","git_commits":62,"git_last_modified":"2026-02-18"},{"id":"src/core/resolver.py","language":"python","category":"source","lines":290,"size":8700,"directory":"src/core","git_commits":35,"git_last_modified":"2026-02-15"},{"id":"src/analyzers/deps.py","language":"python","category":"source","lines":220,"size":6400,"directory":"src/analyzers","git_commits":28,"git_last_modified":"2026-02-17"},{"id":"src/analyzers/metrics.py","language":"python","category":"source","lines":185,"size":5200,"directory":"src/analyzers","git_commits":19,"git_last_modified":"2026-02-14"},{"id":"src/analyzers/git.py","language":"python","category":"source","lines":160,"size":4800,"directory":"src/analyzers","git_commits":14,"git_last_modified":"2026-02-10"},{"id":"src/output/html.py","language":"python","category":"source","lines":340,"size":10200,"directory":"src/output","git_commits":41,"git_last_modified":"2026-02-22"},{"id":"src/output/json.py","language":"python","category":"source","lines":120,"size":3600,"directory":"src/output","git_commits":22,"git_last_modified":"2026-02-16"},{"id":"src/utils/fs.py","language":"python","category":"source","lines":95,"size":2900,"directory":"src/utils","git_commits":11,"git_last_modified":"2026-02-08"},{"id":"src/utils/cache.py","language":"python","category":"source","lines":140,"size":4200,"directory":"src/utils","git_commits":18,"git_last_modified":"2026-02-12"},{"id":"src/utils/log.py","language":"python","category":"source","lines":75,"size":2100,"directory":"src/utils","git_commits":8,"git_last_modified":"2026-02-05"},{"id":"src/cli.py","language":"python","category":"source","lines":195,"size":5800,"directory":"src","git_commits":33,"git_last_modified":"2026-02-21"},{"id":"src/config.py","language":"python","category":"source","lines":110,"size":3200,"directory":"src","git_commits":15,"git_last_modified":"2026-02-13"},{"id":"tests/test_engine.py","language":"python","category":"source","lines":380,"size":11400,"directory":"tests","git_commits":55,"git_last_modified":"2026-02-23"},{"id":"tests/test_parser.py","language":"python","category":"source","lines":290,"size":8700,"directory":"tests","git_commits":40,"git_last_modified":"2026-02-18"},{"id":"tests/test_deps.py","language":"python","category":"source","lines":170,"size":5100,"directory":"tests","git_commits":24,"git_last_modified":"2026-02-15"},{"id":"tests/conftest.py","language":"python","category":"source","lines":85,"size":2500,"directory":"tests","git_commits":12,"git_last_modified":"2026-02-10"},{"id":"frontend/src/app.js","language":"javascript","category":"source","lines":420,"size":13400,"directory":"frontend/src","git_commits":58,"git_last_modified":"2026-02-24"},{"id":"frontend/src/charts.js","language":"javascript","category":"source","lines":350,"size":11200,"directory":"frontend/src","git_commits":44,"git_last_modified":"2026-02-22"},{"id":"frontend/src/api.js","language":"javascript","category":"source","lines":180,"size":5400,"directory":"frontend/src","git_commits":27,"git_last_modified":"2026-02-18"},{"id":"frontend/src/utils.js","language":"javascript","category":"source","lines":130,"size":3900,"directory":"frontend/src","git_commits":16,"git_last_modified":"2026-02-14"},{"id":"frontend/src/store.js","language":"javascript","category":"source","lines":200,"size":6000,"directory":"frontend/src","git_commits":31,"git_last_modified":"2026-02-20"},{"id":"frontend/src/router.js","language":"javascript","category":"source","lines":95,"size":2800,"directory":"frontend/src","git_commits":9,"git_last_modified":"2026-02-09"},{"id":"frontend/src/components/Card.js","language":"javascript","category":"source","lines":115,"size":3400,"directory":"frontend/src/components","git_commits":13,"git_last_modified":"2026-02-11"},{"id":"frontend/src/components/Modal.js","language":"javascript","category":"source","lines":145,"size":4300,"directory":"frontend/src/components","git_commits":17,"git_last_modified":"2026-02-15"},{"id":"frontend/src/components/Table.js","language":"javascript","category":"source","lines":230,"size":6900,"directory":"frontend/src/components","git_commits":29,"git_last_modified":"2026-02-19"},{"id":"frontend/src/components/Nav.js","language":"javascript","category":"source","lines":88,"size":2600,"directory":"frontend/src/components","git_commits":7,"git_last_modified":"2026-02-06"},{"id":"frontend/types/api.ts","language":"typescript","category":"source","lines":120,"size":3800,"directory":"frontend/types","git_commits":15,"git_last_modified":"2026-02-13"},{"id":"frontend/types/models.ts","language":"typescript","category":"source","lines":95,"size":2900,"directory":"frontend/types","git_commits":11,"git_last_modified":"2026-02-09"},{"id":"frontend/src/hooks/useData.ts","language":"typescript","category":"source","lines":180,"size":5400,"directory":"frontend/src/hooks","git_commits":22,"git_last_modified":"2026-02-17"},{"id":"frontend/src/hooks/useFilter.ts","language":"typescript","category":"source","lines":130,"size":3900,"directory":"frontend/src/hooks","git_commits":18,"git_last_modified":"2026-02-15"},{"id":"frontend/src/hooks/useSort.ts","language":"typescript","category":"source","lines":90,"size":2700,"directory":"frontend/src/hooks","git_commits":9,"git_last_modified":"2026-02-08"},{"id":"frontend/src/hooks/useChart.ts","language":"typescript","category":"source","lines":210,"size":6300,"directory":"frontend/src/hooks","git_commits":26,"git_last_modified":"2026-02-20"},{"id":"frontend/src/context/AppCtx.ts","language":"typescript","category":"source","lines":115,"size":3400,"directory":"frontend/src/context","git_commits":14,"git_last_modified":"2026-02-12"},{"id":"frontend/src/context/ThemeCtx.ts","language":"typescript","category":"source","lines":80,"size":2400,"directory":"frontend/src/context","git_commits":8,"git_last_modified":"2026-02-07"},{"id":"frontend/styles/main.css","language":"css","category":"source","lines":340,"size":8500,"directory":"frontend/styles","git_commits":38,"git_last_modified":"2026-02-21"},{"id":"frontend/styles/components.css","language":"css","category":"source","lines":210,"size":5200,"directory":"frontend/styles","git_commits":25,"git_last_modified":"2026-02-17"},{"id":"frontend/styles/theme.css","language":"css","category":"source","lines":95,"size":2400,"directory":"frontend/styles","git_commits":10,"git_last_modified":"2026-02-09"},{"id":"frontend/styles/print.css","language":"css","category":"source","lines":55,"size":1400,"directory":"frontend/styles","git_commits":4,"git_last_modified":"2026-01-30"},{"id":"README.md","language":"markdown","category":"docs","lines":180,"size":7200,"directory":"","git_commits":22,"git_last_modified":"2026-02-24"},{"id":"CONTRIBUTING.md","language":"markdown","category":"docs","lines":95,"size":3800,"directory":"","git_commits":8,"git_last_modified":"2026-02-10"},{"id":"docs/architecture.md","language":"markdown","category":"docs","lines":240,"size":9600,"directory":"docs","git_commits":17,"git_last_modified":"2026-02-19"}],"edges":[{"source":"src/main.py","target":"src/core/engine.py","type":"import"},{"source":"src/main.py","target":"src/cli.py","type":"import"},{"source":"src/main.py","target":"src/config.py","type":"import"},{"source":"src/core/engine.py","target":"src/core/parser.py","type":"import"},{"source":"src/core/engine.py","target":"src/core/resolver.py","type":"import"},{"source":"src/core/engine.py","target":"src/analyzers/deps.py","type":"import"},{"source":"src/core/engine.py","target":"src/analyzers/metrics.py","type":"import"},{"source":"src/core/engine.py","target":"src/utils/log.py","type":"import"},{"source":"src/core/parser.py","target":"src/utils/fs.py","type":"import"},{"source":"src/core/parser.py","target":"src/utils/log.py","type":"import"},{"source":"src/analyzers/deps.py","target":"src/core/parser.py","type":"import"},{"source":"src/analyzers/deps.py","target":"src/utils/cache.py","type":"import"},{"source":"src/analyzers/git.py","target":"src/utils/fs.py","type":"import"},{"source":"src/analyzers/metrics.py","target":"src/utils/cache.py","type":"import"},{"source":"src/output/html.py","target":"src/core/engine.py","type":"import"},{"source":"src/output/html.py","target":"src/utils/fs.py","type":"import"},{"source":"src/output/json.py","target":"src/core/engine.py","type":"import"},{"source":"src/cli.py","target":"src/core/engine.py","type":"import"},{"source":"src/cli.py","target":"src/output/html.py","type":"import"},{"source":"src/cli.py","target":"src/output/json.py","type":"import"},{"source":"src/cli.py","target":"src/analyzers/git.py","type":"import"},{"source":"frontend/src/app.js","target":"frontend/src/charts.js","type":"import"},{"source":"frontend/src/app.js","target":"frontend/src/api.js","type":"import"},{"source":"frontend/src/app.js","target":"frontend/src/store.js","type":"import"},{"source":"frontend/src/app.js","target":"frontend/src/router.js","type":"import"},{"source":"frontend/src/charts.js","target":"frontend/src/utils.js","type":"import"},{"source":"frontend/src/store.js","target":"frontend/src/api.js","type":"import"},{"source":"frontend/src/components/Table.js","target":"frontend/src/store.js","type":"import"},{"source":"frontend/src/components/Card.js","target":"frontend/src/utils.js","type":"import"},{"source":"frontend/src/hooks/useData.ts","target":"frontend/src/api.js","type":"import"},{"source":"frontend/src/hooks/useFilter.ts","target":"frontend/src/store.js","type":"import"},{"source":"frontend/src/hooks/useSort.ts","target":"frontend/src/utils.js","type":"import"},{"source":"frontend/src/hooks/useChart.ts","target":"frontend/src/charts.js","type":"import"},{"source":"frontend/src/context/AppCtx.ts","target":"frontend/src/store.js","type":"import"},{"source":"tests/test_engine.py","target":"src/core/engine.py","type":"import"},{"source":"tests/test_parser.py","target":"src/core/parser.py","type":"import"},{"source":"tests/test_deps.py","target":"src/analyzers/deps.py","type":"import"}]}/*__END__*/;
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  XRAY DASHBOARD — Main Script
+// ═══════════════════════════════════════════════════════════════════
+
+(function () {
+'use strict';
+
+// ── Language Color Palette ──────────────────────────────────────────
+const LANG_COLORS = {
+  python:     '#3776ab',
+  javascript: '#f7df1e',
+  typescript: '#3178c6',
+  css:        '#264de4',
+  html:       '#e34c26',
+  java:       '#b07219',
+  cpp:        '#f34b7d',
+  c:          '#555555',
+  rust:       '#dea584',
+  go:         '#00add8',
+  ruby:       '#701516',
+  php:        '#4f5d95',
+  swift:      '#fa7343',
+  kotlin:     '#a97bff',
+  markdown:   '#083fa1',
+  json:       '#40d158',
+  yaml:       '#cb171e',
+  shell:      '#89e051',
+  dockerfile: '#0db7ed',
+  sql:        '#e38c00',
+  r:          '#198ce7',
+  scala:      '#c22d40',
+};
+
+function langColor(lang) {
+  return LANG_COLORS[(lang || '').toLowerCase()] || '#6e7681';
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function fmtNum(n) {
+  if (n == null) return '—';
+  return n.toLocaleString();
+}
+
+function fmtSize(bytes) {
+  if (bytes == null) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  try { return new Date(s).toLocaleDateString(); } catch(e) { return s; }
+}
+
+function basename(path) {
+  return (path || '').split('/').pop();
+}
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+// ── Tooltip ─────────────────────────────────────────────────────────
+const TT = (() => {
+  const el = document.getElementById('tooltip');
+  let _timer;
+
+  function show(html, event) {
+    clearTimeout(_timer);
+    el.innerHTML = html;
+    el.classList.add('visible');
+    move(event);
+  }
+
+  function move(event) {
+    if (!event) return;
+    const pad = 14;
+    const tw = el.offsetWidth, th = el.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let x = event.clientX + pad;
+    let y = event.clientY + pad;
+    if (x + tw > vw - pad) x = event.clientX - tw - pad;
+    if (y + th > vh - pad) y = event.clientY - th - pad;
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+  }
+
+  function hide() {
+    _timer = setTimeout(() => el.classList.remove('visible'), 80);
+  }
+
+  return { show, move, hide };
+})();
+
+// ── Data Processing ──────────────────────────────────────────────────
+const D = XRAY_DATA;
+const nodes = D.nodes || [];
+const edges = D.edges || [];
+const meta  = D.meta  || {};
+const summary = D.summary || {};
+
+// Build dep counts
+const depCount = {};
+nodes.forEach(n => depCount[n.id] = 0);
+edges.forEach(e => { if (depCount[e.source] != null) depCount[e.source]++; });
+
+// Augment nodes
+nodes.forEach(n => {
+  n._deps = depCount[n.id] || 0;
+  n._name = basename(n.id);
+});
+
+// ── Stats Bar ────────────────────────────────────────────────────────
+document.getElementById('s-files').textContent =
+  fmtNum(summary.total_files || nodes.length);
+document.getElementById('s-lines').textContent =
+  fmtNum(summary.total_lines || nodes.reduce((s, n) => s + (n.lines || 0), 0));
+document.getElementById('s-langs').textContent =
+  fmtNum(summary.languages ? Object.keys(summary.languages).length : 0);
+document.getElementById('s-time').textContent =
+  meta.scan_time ? fmtDate(meta.scan_time) : '—';
+
+// ── Global Filter ────────────────────────────────────────────────────
+let globalFilter = '';
+document.getElementById('global-filter').addEventListener('input', function () {
+  globalFilter = this.value.toLowerCase().trim();
+  if (currentTab === 'treemap') buildTreemap();
+  else if (currentTab === 'force') buildForce();
+  else if (currentTab === 'heatmap') buildHeatmap();
+  else if (currentTab === 'table') renderTable();
+});
+
+// ── Tab Routing ──────────────────────────────────────────────────────
+let currentTab = 'treemap';
+const tabBuilt  = {};
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    this.classList.add('active');
+    const id = this.dataset.tab;
+    currentTab = id;
+    document.getElementById('view-' + id).classList.add('active');
+    buildView(id);
+  });
+});
+
+function buildView(id) {
+  if (id === 'treemap')  { buildTreemap(); }
+  else if (id === 'force')   { if (!tabBuilt.force)   { buildForce(); tabBuilt.force = true; } }
+  else if (id === 'heatmap') { buildHeatmap(); }
+  else if (id === 'table')   { if (!tabBuilt.table) { initTable(); tabBuilt.table = true; } else { renderTable(); } }
+}
+
+// initial build
+buildTreemap();
+
+// ═══════════════════════════════════════════════════════════════════
+//  VIEW 1 — TREEMAP
+// ═══════════════════════════════════════════════════════════════════
+let treemapZoomPath = [];
+
+function filteredNodes() {
+  if (!globalFilter) return nodes;
+  return nodes.filter(n =>
+    n.id.toLowerCase().includes(globalFilter) ||
+    (n.language || '').toLowerCase().includes(globalFilter)
+  );
+}
+
+function buildTreemap() {
+  const wrap = document.getElementById('treemap-svg-wrap');
+  wrap.innerHTML = '';
+
+  const filtered = filteredNodes();
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128269;</div><div>No files match filter</div></div>';
+    return;
+  }
+
+  const W = wrap.clientWidth  || 900;
+  const H = wrap.clientHeight || 600;
+
+  // Build hierarchy
+  const root = buildHierarchy(filtered);
+  const hier = d3.hierarchy(root)
+    .sum(d => d.lines || 0)
+    .sort((a, b) => b.value - a.value);
+
+  d3.treemap()
+    .size([W, H])
+    .paddingOuter(4)
+    .paddingTop(22)
+    .paddingInner(2)
+    .round(true)(hier);
+
+  const svg = d3.select(wrap).append('svg')
+    .attr('width', W)
+    .attr('height', H);
+
+  // Clip path
+  svg.append('defs').append('clipPath')
+    .attr('id', 'treemap-clip')
+    .append('rect')
+    .attr('width', W)
+    .attr('height', H);
+
+  const g = svg.append('g').attr('clip-path', 'url(#treemap-clip)');
+
+  function renderLevel(node) {
+    g.selectAll('*').remove();
+    const leaves = node.leaves();
+    const dirs   = node.children ? node.children.filter(c => c.children) : [];
+
+    // Directory label backgrounds
+    dirs.forEach(dir => {
+      g.append('rect')
+        .attr('x', dir.x0)
+        .attr('y', dir.y0)
+        .attr('width', dir.x1 - dir.x0)
+        .attr('height', dir.y1 - dir.y0)
+        .attr('fill', 'rgba(255,255,255,0.03)')
+        .attr('stroke', '#30363d')
+        .attr('stroke-width', 1)
+        .attr('rx', 3)
+        .style('cursor', 'pointer')
+        .on('click', (event) => {
+          treemapZoomPath.push(dir);
+          renderLevel(dir);
+          updateBreadcrumb();
+        });
+
+      if (dir.x1 - dir.x0 > 30) {
+        g.append('text')
+          .attr('x', dir.x0 + 6)
+          .attr('y', dir.y0 + 14)
+          .attr('font-size', 11)
+          .attr('font-weight', 700)
+          .attr('fill', '#8b949e')
+          .text(dir.data.name);
+      }
+    });
+
+    // File cells
+    const cells = g.selectAll('.treemap-cell')
+      .data(leaves)
+      .join('g')
+      .attr('class', 'treemap-cell')
+      .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+    cells.append('rect')
+      .attr('width', d => Math.max(0, d.x1 - d.x0))
+      .attr('height', d => Math.max(0, d.y1 - d.y0))
+      .attr('fill', d => langColor(d.data.language))
+      .attr('rx', 2)
+      .style('cursor', 'default');
+
+    cells.filter(d => d.x1 - d.x0 > 40 && d.y1 - d.y0 > 18)
+      .append('text')
+      .attr('x', 5)
+      .attr('y', 14)
+      .text(d => {
+        const maxChars = Math.floor((d.x1 - d.x0 - 10) / 6.5);
+        const name = d.data._name || d.data.id;
+        return name.length > maxChars ? name.slice(0, maxChars - 1) + '…' : name;
+      });
+
+    cells.filter(d => d.x1 - d.x0 > 60 && d.y1 - d.y0 > 32)
+      .append('text')
+      .attr('x', 5)
+      .attr('y', 28)
+      .attr('fill', 'rgba(255,255,255,0.55)')
+      .attr('font-size', 9)
+      .text(d => fmtNum(d.data.lines) + ' ln');
+
+    cells
+      .on('mousemove', (event, d) => {
+        TT.show(`
+          <div class="tt-title">${d.data.id}</div>
+          <div class="tt-row"><span class="tt-label">Language</span><span class="tt-val">${d.data.language || '—'}</span></div>
+          <div class="tt-row"><span class="tt-label">Lines</span><span class="tt-val">${fmtNum(d.data.lines)}</span></div>
+          <div class="tt-row"><span class="tt-label">Size</span><span class="tt-val">${fmtSize(d.data.size)}</span></div>
+          <div class="tt-row"><span class="tt-label">Commits</span><span class="tt-val">${fmtNum(d.data.git_commits)}</span></div>
+        `, event);
+      })
+      .on('mouseleave', TT.hide);
+  }
+
+  // Build breadcrumb
+  function updateBreadcrumb() {
+    const bc = document.getElementById('treemap-breadcrumb');
+    bc.innerHTML = '';
+    const parts = [{ name: meta.project || 'root', node: hier }].concat(
+      treemapZoomPath.map(n => ({ name: n.data.name, node: n }))
+    );
+    parts.forEach((p, i) => {
+      const span = document.createElement('span');
+      span.className = 'bc-item';
+      span.textContent = p.name;
+      span.addEventListener('click', () => {
+        treemapZoomPath = treemapZoomPath.slice(0, i);
+        renderLevel(i === 0 ? hier : treemapZoomPath[i - 1]);
+        updateBreadcrumb();
+      });
+      bc.appendChild(span);
+      if (i < parts.length - 1) {
+        const sep = document.createElement('span');
+        sep.className = 'bc-sep';
+        sep.textContent = ' / ';
+        bc.appendChild(sep);
+      }
+    });
+  }
+
+  const targetNode = treemapZoomPath.length
+    ? treemapZoomPath[treemapZoomPath.length - 1]
+    : hier;
+  renderLevel(targetNode);
+  updateBreadcrumb();
+}
+
+function buildHierarchy(nodeList) {
+  const root = { name: meta.project || 'root', children: [] };
+  const dirs = {};
+
+  nodeList.forEach(n => {
+    const dir = n.directory || '';
+    if (!dirs[dir]) {
+      dirs[dir] = { name: dir || '(root)', children: [] };
+      root.children.push(dirs[dir]);
+    }
+    dirs[dir].children.push(n);
+  });
+
+  return root;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  VIEW 2 — FORCE GRAPH
+// ═══════════════════════════════════════════════════════════════════
+function buildForce() {
+  const wrap = document.getElementById('force-svg-wrap');
+  wrap.innerHTML = '';
+
+  const filtered = filteredNodes();
+  const filteredIds = new Set(filtered.map(n => n.id));
+  const filteredEdges = edges.filter(e =>
+    filteredIds.has(e.source) && filteredIds.has(e.target)
+  );
+
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9672;</div><div>No files match filter</div></div>';
+    return;
+  }
+
+  const W = wrap.clientWidth  || 900;
+  const H = wrap.clientHeight || 600;
+
+  const maxLines = d3.max(filtered, d => d.lines) || 1;
+
+  const r = d => clamp(Math.sqrt((d.lines || 1) / maxLines) * 22, 4, 22);
+
+  // SVG
+  const svg = d3.select(wrap).append('svg')
+    .attr('width', W)
+    .attr('height', H)
+    .call(d3.zoom()
+      .scaleExtent([0.15, 4])
+      .on('zoom', (event) => g.attr('transform', event.transform))
+    );
+
+  // Arrow marker
+  const defs = svg.append('defs');
+  defs.append('marker')
+    .attr('id', 'arrowhead')
+    .attr('viewBox', '-0 -5 10 10')
+    .attr('refX', 18)
+    .attr('refY', 0)
+    .attr('orient', 'auto')
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .append('path')
+    .attr('d', 'M 0,-5 L 10,0 L 0,5')
+    .attr('fill', '#484f58');
+
+  const g = svg.append('g');
+
+  // Simulation
+  const linkData = filteredEdges.map(e => ({
+    source: e.source,
+    target: e.target,
+    type: e.type
+  }));
+
+  const sim = d3.forceSimulation(filtered)
+    .force('link', d3.forceLink(linkData).id(d => d.id).distance(90).strength(0.3))
+    .force('charge', d3.forceManyBody().strength(-200))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide().radius(d => r(d) + 4));
+
+  // Links
+  const link = g.selectAll('.force-link')
+    .data(linkData)
+    .join('line')
+    .attr('class', 'force-link');
+
+  // Nodes
+  const nodeG = g.selectAll('.force-node')
+    .data(filtered)
+    .join('g')
+    .attr('class', 'force-node')
+    .call(d3.drag()
+      .on('start', (event, d) => {
+        if (!event.active) sim.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+      })
+      .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+      .on('end', (event, d) => {
+        if (!event.active) sim.alphaTarget(0);
+        d.fx = null; d.fy = null;
+      })
+    );
+
+  nodeG.append('circle')
+    .attr('r', d => r(d))
+    .attr('fill', d => langColor(d.language))
+    .attr('stroke', '#0d1117')
+    .attr('stroke-width', 1.5);
+
+  nodeG.append('text')
+    .attr('dy', d => r(d) + 11)
+    .attr('text-anchor', 'middle')
+    .text(d => d._name);
+
+  // Hover interactions
+  const adjSet = buildAdjSet(linkData);
+
+  nodeG
+    .on('mousemove', (event, d) => {
+      const inDeps  = edges.filter(e => e.target === d.id).length;
+      const outDeps = edges.filter(e => e.source === d.id).length;
+      TT.show(`
+        <div class="tt-title">${d.id}</div>
+        <div class="tt-row"><span class="tt-label">Language</span><span class="tt-val">${d.language || '—'}</span></div>
+        <div class="tt-row"><span class="tt-label">Lines</span><span class="tt-val">${fmtNum(d.lines)}</span></div>
+        <div class="tt-row"><span class="tt-label">Imports</span><span class="tt-val">${outDeps}</span></div>
+        <div class="tt-row"><span class="tt-label">Imported by</span><span class="tt-val">${inDeps}</span></div>
+      `, event);
+
+      const connected = adjSet[d.id] || new Set();
+      nodeG.classed('dimmed', n => n.id !== d.id && !connected.has(n.id));
+      nodeG.classed('highlighted', n => n.id === d.id);
+      link.classed('dimmed', l =>
+        l.source.id !== d.id && l.target.id !== d.id
+      );
+      link.classed('highlighted', l =>
+        l.source.id === d.id || l.target.id === d.id
+      );
+    })
+    .on('mouseleave', () => {
+      TT.hide();
+      nodeG.classed('dimmed', false).classed('highlighted', false);
+      link.classed('dimmed', false).classed('highlighted', false);
+    });
+
+  sim.on('tick', () => {
+    link
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+
+    nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  // Legend
+  const langs = [...new Set(filtered.map(n => n.language).filter(Boolean))].sort();
+  const legWrap = document.getElementById('force-legend-items');
+  legWrap.innerHTML = '';
+  langs.forEach(lang => {
+    const item = document.createElement('div');
+    item.className = 'leg-item';
+    item.innerHTML = `<div class="leg-dot" style="background:${langColor(lang)}"></div><span>${lang}</span>`;
+    legWrap.appendChild(item);
+  });
+}
+
+function buildAdjSet(links) {
+  const adj = {};
+  links.forEach(l => {
+    const s = typeof l.source === 'object' ? l.source.id : l.source;
+    const t = typeof l.target === 'object' ? l.target.id : l.target;
+    if (!adj[s]) adj[s] = new Set();
+    if (!adj[t]) adj[t] = new Set();
+    adj[s].add(t);
+    adj[t].add(s);
+  });
+  return adj;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  VIEW 3 — HEATMAP
+// ═══════════════════════════════════════════════════════════════════
+function buildHeatmap() {
+  const container = document.getElementById('heatmap-container');
+  container.innerHTML = '';
+
+  const filtered = filteredNodes();
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9635;</div><div>No files match filter</div></div>';
+    return;
+  }
+
+  // Use git_commits if available, else lines
+  const useCommits = filtered.some(n => n.git_commits != null && n.git_commits > 0);
+  const getValue = n => useCommits ? (n.git_commits || 0) : (n.lines || 0);
+  const maxVal = d3.max(filtered, getValue) || 1;
+
+  // Gradient legend
+  const canvas = document.getElementById('heatmap-gradient');
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 160, 0);
+  grad.addColorStop(0,   '#0d1117');
+  grad.addColorStop(0.3, '#0e4429');
+  grad.addColorStop(0.6, '#006d32');
+  grad.addColorStop(0.8, '#26a641');
+  grad.addColorStop(1,   '#39d353');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 160, 12);
+
+  document.getElementById('heatmap-legend-label').textContent =
+    useCommits ? 'Git commits:' : 'Lines of code:';
+
+  // Color scale (GitHub contribution style)
+  const colorScale = d3.scaleSequential()
+    .domain([0, maxVal])
+    .interpolator(t => {
+      if (t < 0.001) return '#161b22';
+      if (t < 0.2)   return '#0e4429';
+      if (t < 0.4)   return '#006d32';
+      if (t < 0.7)   return '#26a641';
+      return '#39d353';
+    });
+
+  // Group by directory
+  const groups = {};
+  filtered.forEach(n => {
+    const dir = n.directory || '(root)';
+    if (!groups[dir]) groups[dir] = [];
+    groups[dir].push(n);
+  });
+
+  Object.keys(groups).sort().forEach(dir => {
+    const grp = document.createElement('div');
+    grp.className = 'hm-dir-group';
+
+    const label = document.createElement('div');
+    label.className = 'hm-dir-label';
+    label.textContent = dir;
+    grp.appendChild(label);
+
+    const cells = document.createElement('div');
+    cells.className = 'hm-cells';
+
+    groups[dir].forEach(n => {
+      const cell = document.createElement('div');
+      cell.className = 'hm-cell';
+      const v = getValue(n);
+      cell.style.background = colorScale(v);
+      cell.title = n._name;
+
+      cell.addEventListener('mousemove', (e) => {
+        TT.show(`
+          <div class="tt-title">${n.id}</div>
+          <div class="tt-row"><span class="tt-label">${useCommits ? 'Commits' : 'Lines'}</span><span class="tt-val">${fmtNum(v)}</span></div>
+          <div class="tt-row"><span class="tt-label">Language</span><span class="tt-val">${n.language || '—'}</span></div>
+          <div class="tt-row"><span class="tt-label">Last modified</span><span class="tt-val">${fmtDate(n.git_last_modified)}</span></div>
+        `, e);
+      });
+      cell.addEventListener('mouseleave', TT.hide);
+      cells.appendChild(cell);
+    });
+
+    grp.appendChild(cells);
+    container.appendChild(grp);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  VIEW 4 — TABLE
+// ═══════════════════════════════════════════════════════════════════
+let tableSort  = { col: 'lines', dir: 'desc' };
+let tableQuery = '';
+let showAll    = false;
+const PAGE_SIZE = 200;
+
+function initTable() {
+  // Table search syncs with global filter
+  const ts = document.getElementById('table-search');
+  ts.value = globalFilter;
+  tableQuery = globalFilter;
+
+  ts.addEventListener('input', function () {
+    tableQuery = this.value.toLowerCase().trim();
+    showAll = false;
+    renderTable();
+  });
+
+  document.querySelectorAll('#data-table th').forEach(th => {
+    th.addEventListener('click', function () {
+      const col = this.dataset.col;
+      if (tableSort.col === col) {
+        tableSort.dir = tableSort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        tableSort = { col, dir: col === 'id' || col === 'language' || col === 'category' ? 'asc' : 'desc' };
+      }
+      renderTable();
+    });
+  });
+
+  document.getElementById('table-show-all').addEventListener('click', () => {
+    showAll = true;
+    renderTable();
+  });
+
+  renderTable();
+}
+
+function renderTable() {
+  // Sync table search with global filter if table search is empty
+  const ts = document.getElementById('table-search');
+  const query = tableQuery || globalFilter;
+  if (ts && !tableQuery && globalFilter) ts.value = globalFilter;
+
+  let data = nodes.slice();
+
+  if (query) {
+    data = data.filter(n =>
+      n.id.toLowerCase().includes(query) ||
+      (n.language || '').toLowerCase().includes(query) ||
+      (n.category || '').toLowerCase().includes(query)
+    );
+  }
+
+  // Sort
+  const col = tableSort.col;
+  data.sort((a, b) => {
+    let va, vb;
+    if (col === 'id')       { va = a.id; vb = b.id; }
+    else if (col === 'language')  { va = a.language || ''; vb = b.language || ''; }
+    else if (col === 'category')  { va = a.category || ''; vb = b.category || ''; }
+    else if (col === 'lines')     { va = a.lines || 0; vb = b.lines || 0; }
+    else if (col === 'size')      { va = a.size  || 0; vb = b.size  || 0; }
+    else if (col === 'deps')      { va = a._deps || 0; vb = b._deps || 0; }
+    else if (col === 'git_commits') { va = a.git_commits || 0; vb = b.git_commits || 0; }
+    else { va = ''; vb = ''; }
+
+    if (typeof va === 'string') {
+      return tableSort.dir === 'asc'
+        ? va.localeCompare(vb)
+        : vb.localeCompare(va);
+    }
+    return tableSort.dir === 'asc' ? va - vb : vb - va;
+  });
+
+  // Update sort indicators
+  document.querySelectorAll('#data-table th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === tableSort.col) {
+      th.classList.add(tableSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
+
+  const total = data.length;
+  const displayed = showAll ? data : data.slice(0, PAGE_SIZE);
+  const hasMore = !showAll && total > PAGE_SIZE;
+
+  document.getElementById('table-row-count').textContent =
+    `${fmtNum(displayed.length)} of ${fmtNum(total)} files`;
+
+  const showAllBtn = document.getElementById('table-show-all');
+  if (hasMore) {
+    showAllBtn.classList.remove('hidden');
+    showAllBtn.textContent = `Show all ${fmtNum(total)}`;
+  } else {
+    showAllBtn.classList.add('hidden');
+  }
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+
+  displayed.forEach(n => {
+    const tr = document.createElement('tr');
+    const color = langColor(n.language);
+
+    tr.innerHTML = `
+      <td title="${n.id}">${n._name}</td>
+      <td><span class="lang-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${n.language || '—'}</span></td>
+      <td>${n.category || '—'}</td>
+      <td class="num-cell">${fmtNum(n.lines)}</td>
+      <td class="num-cell">${fmtSize(n.size)}</td>
+      <td class="num-cell">${fmtNum(n._deps)}</td>
+      <td class="num-cell">${n.git_commits != null ? fmtNum(n.git_commits) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RESIZE HANDLER
+// ═══════════════════════════════════════════════════════════════════
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (currentTab === 'treemap') buildTreemap();
+    else if (currentTab === 'force') {
+      tabBuilt.force = false;
+      buildForce();
+      tabBuilt.force = true;
+    }
+  }, 250);
+});
+
+})(); // end IIFE
+</script>
+</body>
+</html>

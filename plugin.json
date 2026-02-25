@@ -4,7 +4,7 @@
     "description": "One-command project dashboard generator — scan any codebase and generate interactive visualizations with dependency graphs, treemaps, and git heatmaps.",
     "author": "yangze",
     "license": "MIT",
-    "repository": "https://github.com/user/code-xray",
+    "repository": "https://github.com/yangzealliator-yz/code-xray",
     "commands": [
         {
             "name": "xray",
@@ -13,5 +13,5 @@
         }
     ],
     "tags": ["developer-tools", "code-analysis", "visualization", "architecture"],
-    "install": "git clone https://github.com/user/code-xray.git && cp -r code-xray/.claude/commands/xray.md ~/.claude/commands/"
+    "install": "pip install code-xray"
 }
