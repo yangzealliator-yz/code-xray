@@ -44,4 +44,4 @@ packages = ["xray"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-xray = ["templates/*.html"]
+xray = ["templates/*.html", "vendor/*.js"]

@@ -86,6 +86,26 @@ def _build_xray_data(
     }
 
 
+_D3_CACHE = None
+
+def _get_d3_inline() -> str:
+    """Load D3.js from bundled file for inline embedding."""
+    global _D3_CACHE
+    if _D3_CACHE is not None:
+        return _D3_CACHE
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    d3_path = os.path.join(pkg_dir, "vendor", "d3.min.js")
+    if not os.path.isfile(d3_path):
+        # Fallback: check repo root
+        d3_path = os.path.join(os.path.dirname(pkg_dir), "xray", "vendor", "d3.min.js")
+    if os.path.isfile(d3_path):
+        with open(d3_path, "r", encoding="utf-8") as f:
+            _D3_CACHE = f.read()
+        return _D3_CACHE
+    _D3_CACHE = ""
+    return ""
+
+
 def render_html(
     scan,
     deps,
@@ -123,6 +143,17 @@ def render_html(
     pattern = r"/\*__XRAY_DATA__\*/.*?/\*__END__\*/"
     replacement = f"/*__XRAY_DATA__*/{json_str}/*__END__*/"
     html = re.sub(pattern, replacement, template, count=1, flags=re.DOTALL)
+
+    # Inline D3.js for offline / CDN-blocked environments
+    d3_inline = _get_d3_inline()
+    if d3_inline:
+        # Use lambda to avoid re.sub interpreting backslashes in D3 source
+        html = re.sub(
+            r'<script\s+src="[^"]*d3[^"]*\.js"[^>]*>\s*</script>',
+            lambda m: f"<script>{d3_inline}</script>",
+            html,
+            count=1,
+        )
 
     # Write output HTML
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
