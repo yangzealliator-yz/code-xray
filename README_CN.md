@@ -42,6 +42,8 @@ python xray.py /path/to/your/project
 
 零外部依赖 — 仅需 Python 3.8+。
 
+> **注意**: `xray` 是**系统终端命令** — 请在 cmd / PowerShell / bash 中运行，**不要**在 Python `>>>` 交互式解释器中输入。如果看到 `SyntaxError: invalid syntax`，说明你在 Python 环境里，请先输入 `exit()` 退出 Python，再运行 `xray` 命令。
+
 ## 快速开始
 
 ```bash
@@ -119,6 +121,9 @@ Python、JavaScript、TypeScript、C#、Go、Rust、Java、Kotlin、Swift、Dart
 4. **渲染** — 将所有数据注入 D3.js 模板，生成单个 HTML 文件
 
 ## 常见问题
+
+**Q: 运行 `xray` 报 `SyntaxError: invalid syntax`？**
+A: 你在 Python 交互式解释器（`>>>` 提示符）中输入了命令。`xray` 是系统终端命令，请先退出 Python（输入 `exit()` 或按 Ctrl+Z），然后在 cmd / PowerShell / bash 中运行。也可以用 `python -m xray /path/to/project` 方式调用。
 
 **Q: 会上传我的代码吗？**
 A: 不会。所有处理在本地完成，输出 HTML 完全自包含。

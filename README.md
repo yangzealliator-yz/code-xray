@@ -42,6 +42,8 @@ python xray.py /path/to/your/project
 
 No dependencies required — Python 3.8+ only.
 
+> **Note**: `xray` is a **terminal command** — run it in your system shell (cmd / PowerShell / bash), **not** inside the Python `>>>` interpreter. If you see `SyntaxError: invalid syntax`, you're in the wrong place. Type `exit()` to leave Python first.
+
 ## Quick Start
 
 ```bash
@@ -119,6 +121,9 @@ Python, JavaScript, TypeScript, C#, Go, Rust, Java, Kotlin, Swift, Dart, C, C++,
 4. **Render** — Injects all data into a D3.js template to produce a single HTML file
 
 ## FAQ
+
+**Q: I get `SyntaxError: invalid syntax` when running `xray`?**
+A: You are typing the command inside the Python interpreter (`>>>` prompt). `xray` is a system terminal command. Exit Python first (`exit()` or Ctrl+Z), then run `xray` in cmd / PowerShell / bash. Alternatively, use `python -m xray /path/to/project` if you prefer the Python module style.
 
 **Q: Does it upload my code anywhere?**
 A: No. Everything runs locally. The output HTML is self-contained.
